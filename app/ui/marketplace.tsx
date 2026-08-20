@@ -1,9 +1,9 @@
 "use client";
-import React, { FormEvent, useEffect, useMemo, useState, ReactNode } from "react";
+import React, { FormEvent, SyntheticEvent, useEffect, useMemo, useState, ReactNode } from "react";
 import { vehiclePath, vehicles as mockCars, type Vehicle } from "../../lib/vehicles";
-import { getImageFallbackUrl, getImageUrl } from "../../lib/supabase/client";
-import { createClient } from "../../lib/supabase/client";
+import { createClient, getImageFallbackUrl, getImageUrl } from "../../lib/supabase/client";
 import type { Listing } from "../../lib/listings";
+import galleryStyles from "./detail-gallery.module.css";
 
 const money = (n: number) => new Intl.NumberFormat("en-TZ", { style: "currency", currency: "TZS", maximumFractionDigits: 0 }).format(n).replace("TZS", "TSh");
 const LinkLogo = (): ReactNode => <a className="logo" href="/"><span className="mark">↗</span><span>GariLink <b>Tz</b></span></a>;
@@ -169,6 +169,20 @@ function Detail({ car, favourite, fav, onBack, setNotice, nav }: any): ReactNode
   const [expanded, setExpanded] = useState(false);
   const [contact, setContact] = useState(false);
   const [viewing, setViewing] = useState(false);
+  const galleryImages = Array.isArray(car.images) && car.images.length ? car.images : [car.image];
+  const [activePhoto, setActivePhoto] = useState(0);
+  const activeImage = galleryImages[activePhoto] ?? galleryImages[0];
+  const handleImageError = (event: SyntheticEvent<HTMLImageElement>) => {
+    const image = event.currentTarget;
+    if (!image.dataset.fallbackTried) {
+      image.dataset.fallbackTried = "true";
+      image.src = getImageFallbackUrl(image.src);
+    }
+  };
+
+  useEffect(() => {
+    setActivePhoto(0);
+  }, [car.id]);
   
   const whatsappText = "Hello, I am interested in the " + car.year + " " + car.make + " " + car.model + " listed on GariLink TZ. Is it still available?";
   const wa = "https://wa.me/255712555010?text=" + encodeURIComponent(whatsappText);
@@ -189,12 +203,16 @@ function Detail({ car, favourite, fav, onBack, setNotice, nav }: any): ReactNode
         </div>
       </div>
       
-      <section className="gallery" aria-label="Vehicle photo gallery">
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
-        <button type="button">▧ 4 photos</button>
+      <section className={galleryStyles.detailGallery} aria-label="Vehicle photo gallery">
+        <div className={galleryStyles.mainPhoto}>
+          <img src={getImageUrl(activeImage)} alt={`${car.year} ${car.make} ${car.model}, photo ${activePhoto + 1}`} onError={handleImageError} />
+          <span className={galleryStyles.photoCount}>▧ {galleryImages.length} {galleryImages.length === 1 ? "photo" : "photos"}</span>
+        </div>
+        {galleryImages.length > 1 && <div className={galleryStyles.thumbnails}>
+          {galleryImages.slice(0, 4).map((image: string, index: number) => <button type="button" key={`${image}-${index}`} className={galleryStyles.thumbnail} aria-label={`Show photo ${index + 1} of ${galleryImages.length}`} aria-pressed={activePhoto === index} onClick={() => setActivePhoto(index)}>
+            <img src={getImageUrl(image)} alt="" onError={handleImageError} />
+          </button>)}
+        </div>}
       </section>
       
       <div className="detailLayout">
