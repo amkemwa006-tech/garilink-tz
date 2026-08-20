@@ -1,7 +1,7 @@
 "use client";
 import React, { FormEvent, useEffect, useMemo, useState, ReactNode } from "react";
 import { vehiclePath, vehicles as mockCars, type Vehicle } from "../../lib/vehicles";
-import { getImageUrl } from "../../lib/supabase/client";
+import { getImageFallbackUrl, getImageUrl } from "../../lib/supabase/client";
 import type { Listing } from "../../lib/listings";
 
 const money = (n: number) => new Intl.NumberFormat("en-TZ", { style: "currency", currency: "TZS", maximumFractionDigits: 0 }).format(n).replace("TZS", "TSh");
@@ -97,7 +97,7 @@ function Card({ car, favourite, fav, onView }: { car: Vehicle; favourite: () => 
   const open = () => onView(car.id);
   return <article className="carCard">
     <div className="carImage" onClick={open} role="button" tabIndex={0}>
-      <img src={getImageUrl(car.image)} alt={`${car.year} ${car.make} ${car.model} for sale`} loading="lazy" decoding="async" />
+      <img src={getImageUrl(car.image)} alt={`${car.year} ${car.make} ${car.model} for sale`} loading="lazy" decoding="async" onError={(event) => { const image = event.currentTarget; if (!image.dataset.fallbackTried) { image.dataset.fallbackTried = "true"; image.src = getImageFallbackUrl(image.src); } }} />
       <span className="photos">▧ 12</span>
       <button aria-label="Save vehicle" onClick={e => { e.stopPropagation(); favourite() }} className={fav ? "heart active" : "heart"}>♥</button>
     </div>

@@ -17,3 +17,15 @@ export function getImageUrl(filename: string): string {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   return `${baseUrl}/storage/v1/object/public/listing-images/${filename}`;
 }
+
+export function getImageFallbackUrl(url: string): string {
+  if (url.includes("/listing-images/")) {
+    return url.replace("/listing-images/", "/listing-images./");
+  }
+
+  if (url.includes("/listing-images./")) {
+    return url.replace("/listing-images./", "/listing-images/");
+  }
+
+  return url;
+}
