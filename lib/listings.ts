@@ -34,8 +34,9 @@ const listingSelect = `
 
 function publicImageUrl(storagePath: string) {
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
+  const objectPath = storagePath.replace(/^listing-images\.?\//, "");
   return baseUrl && storagePath
-    ? `${baseUrl}/storage/v1/object/public/listing-images./${storagePath}`
+    ? `${baseUrl}/storage/v1/object/public/listing-images./${objectPath}`
     : "/vehicles/toyota-prado-2021.webp";
 }
 
