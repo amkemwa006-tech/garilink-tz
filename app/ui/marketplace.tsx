@@ -189,11 +189,12 @@ function Detail({ car, favourite, fav, onBack, setNotice, nav }: any): ReactNode
         </div>
       </div>
       
-      <section className="gallery" aria-label="Swipeable vehicle gallery" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '20px' }}>
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '300px', borderRadius: '8px' }} />
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '300px', borderRadius: '8px' }} />
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '300px', borderRadius: '8px' }} />
-        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})`, backgroundSize: 'cover', backgroundPosition: 'center', height: '300px', borderRadius: '8px' }} />
+      <section className="gallery" aria-label="Vehicle photo gallery">
+        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
+        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
+        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
+        <div style={{ backgroundImage: `url(${getImageUrl(car.image)})` }} />
+        <button type="button">▧ 4 photos</button>
       </section>
       
       <div className="detailLayout">
@@ -233,7 +234,7 @@ function Detail({ car, favourite, fav, onBack, setNotice, nav }: any): ReactNode
           </section>
         </div>
         
-        <aside className="pricePanel">
+        <aside className="pricePanel" style={{ background: "#fff", zIndex: 1 }}>
           <small>Price · {car.badge}</small>
           <h2>{money(car.price)}</h2>
           <p>Price before transfer fees.</p>
