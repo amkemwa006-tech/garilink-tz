@@ -1,19 +1,21 @@
 "use client";
 import React, { FormEvent, useEffect, useMemo, useState, ReactNode } from "react";
-import { vehiclePath, vehicles as cars, type Vehicle } from "../../lib/vehicles";
+import { vehiclePath, vehicles as mockCars, type Vehicle } from "../../lib/vehicles";
 import { getImageUrl } from "../../lib/supabase/client";
+import type { Listing } from "../../lib/listings";
 
 const money = (n: number) => new Intl.NumberFormat("en-TZ", { style: "currency", currency: "TZS", maximumFractionDigits: 0 }).format(n).replace("TZS", "TSh");
 const LinkLogo = (): ReactNode => <a className="logo" href="/"><span className="mark">↗</span><span>GariLink <b>Tz</b></span></a>;
 
-export default function Marketplace({ initialView = "home", initialCarId = 1, initialQuery = "", initialRegion = "" }: { initialView?: "home" | "results" | "detail" | "finance" | "value" | "sell" | "dealer"; initialCarId?: number; initialQuery?: string; initialRegion?: string }): ReactNode {
+export default function Marketplace({ initialVehicles = [], initialView = "home", initialCarId = 1, initialQuery = "", initialRegion = "" }: { initialVehicles?: Listing[]; initialView?: "home" | "results" | "detail" | "finance" | "value" | "sell" | "dealer"; initialCarId?: string | number; initialQuery?: string; initialRegion?: string }): ReactNode {
+  const cars = (initialVehicles.length ? initialVehicles.map((listing) => ({ ...listing, promoted: false })) : mockCars) as unknown as Vehicle[];
   const [view, setView] = useState(initialView);
   const [activeCarId, setActiveCarId] = useState(initialCarId);
   const [query, setQuery] = useState(initialQuery);
   const [region, setRegion] = useState(initialRegion);
   const [drawer, setDrawer] = useState(false);
   const [sort, setSort] = useState("relevance");
-  const [fav, setFav] = useState<number[]>([]);
+  const [fav, setFav] = useState<(string | number)[]>([]);
   const [notice, setNotice] = useState("");
   const [lang, setLang] = useState<"EN" | "SW">("EN");
   const [page, setPage] = useState(1);
@@ -33,10 +35,10 @@ export default function Marketplace({ initialView = "home", initialCarId = 1, in
   }, [view, query, region, sort, filters]);
   
   const search = (e: FormEvent) => { e.preventDefault(); setView("results"); };
-  const favourite = (id: number) => setFav(x => x.includes(id) ? x.filter(v => v !== id) : [...x, id]);
+  const favourite = (id: string | number) => setFav(x => x.includes(id) ? x.filter(v => v !== id) : [...x, id]);
   const nav = (v: typeof view) => { setView(v); window.scrollTo({ top: 0, behavior: "smooth" }); };
   
-  const handleViewCar = (id: number) => {
+  const handleViewCar = (id: string | number) => {
     setActiveCarId(id);
     nav("detail");
   };
@@ -46,16 +48,16 @@ export default function Marketplace({ initialView = "home", initialCarId = 1, in
   return <>
     <header><div className="header"><LinkLogo /><nav><button onClick={() => nav("results")}>Buy a car</button><button onClick={() => nav("sell")}>Sell my car</button><button onClick={() => nav("value")}>Value my car</button><button>News & reviews⌄</button><button onClick={() => nav("finance")}>Tools & services</button></nav><div className="headerRight"><button className="lang" onClick={() => setLang(lang === "EN" ? "SW" : "EN")}>{lang} / {lang === "EN" ? "SW" : "EN"}</button><button className="dealerLogin" onClick={() => nav("dealer")}>Dealer Login</button><button className="account">◯ Sign in</button></div></div></header>
     {notice && <div className="toast" role="status">{notice}</div>}
-    {view === "home" && <Home search={search} query={query} setQuery={setQuery} region={region} setRegion={setRegion} count={filtered.length} nav={nav} setDrawer={setDrawer} lang={lang} onViewCar={handleViewCar} />}
-    {view === "results" && <Results cars={filtered} query={query} setQuery={setQuery} region={region} setRegion={setRegion} search={search} sort={sort} setSort={setSort} drawer={drawer} setDrawer={setDrawer} favourite={favourite} fav={fav} nav={nav} filters={filters} setFilters={setFilters} page={page} setPage={setPage} onViewCar={handleViewCar} />}
+    {view === "home" && <Home cars={cars} search={search} query={query} setQuery={setQuery} region={region} setRegion={setRegion} count={filtered.length} nav={nav} setDrawer={setDrawer} lang={lang} onViewCar={handleViewCar} />}
+    {view === "results" && <Results availableCars={cars} cars={filtered} query={query} setQuery={setQuery} region={region} setRegion={setRegion} search={search} sort={sort} setSort={setSort} drawer={drawer} setDrawer={setDrawer} favourite={favourite} fav={fav} nav={nav} filters={filters} setFilters={setFilters} page={page} setPage={setPage} onViewCar={handleViewCar} />}
     {view === "detail" && <Detail car={currentCar} favourite={favourite} fav={fav} onBack={() => nav("results")} setNotice={setNotice} nav={nav} />}
     {view === "finance" && <Finance />}{view === "value" && <Value nav={nav} />} {view === "sell" && <Sell setNotice={setNotice} />} {view === "dealer" && <DealerDashboard setNotice={setNotice} />}<Footer /><MobileNav nav={nav} setDrawer={setDrawer} fav={fav.length} lang={lang} /></>;
 }
 
-function Search({ search, query, setQuery, region, setRegion, count, setDrawer }: { search: (e: FormEvent) => void; query: string; setQuery: (s: string) => void; region: string; setRegion: (s: string) => void; count: number; setDrawer?: (x: boolean) => void }): ReactNode { 
+function Search({ search, query, setQuery, region, setRegion, availableCars, count, setDrawer }: { search: (e: FormEvent) => void; query: string; setQuery: (s: string) => void; region: string; setRegion: (s: string) => void; availableCars: Vehicle[]; count: number; setDrawer?: (x: boolean) => void }): ReactNode { 
   return <form className="search" onSubmit={search}>
     <label><span>Make, model or keyword</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. Toyota Harrier" /></label>
-    <label><span>Location</span><select value={region} onChange={e => setRegion(e.target.value)}><option value="">All Tanzania</option>{[...new Set(cars.map(c => c.region))].map(x => <option key={x}>{x}</option>)}</select></label>
+    <label><span>Location</span><select value={region} onChange={e => setRegion(e.target.value)}><option value="">All Tanzania</option>{[...new Set(availableCars.map(c => c.region))].map(x => <option key={x}>{x}</option>)}</select></label>
     <button className="filter" type="button" onClick={() => setDrawer?.(true)}> Filters</button>
     <button className="primary">Search {count} cars</button>
   </form> 
@@ -65,7 +67,7 @@ function Home(p: any): ReactNode {
   return <main>
     <section className="hero">
       <div className="heroCopy"><p className="eyebrow">TANZANIA'S CAR MARKETPLACE</p><h1>Find your next journey.</h1><p>Buy and sell new, foreign used and local used cars with trusted dealers and private sellers across Tanzania.</p></div>
-      <div className="searchWrap"><div className="tabs"><b>Cars</b><span>Commercial</span><span>Motorcycles</span></div><Search {...p} /></div>
+      <div className="searchWrap"><div className="tabs"><b>Cars</b><span>Commercial</span><span>Motorcycles</span></div><Search {...p} availableCars={p.cars} /></div>
     </section>
     <section className="container budget"><div><p className="eyebrow">PLAN WITH CONFIDENCE</p><h2>Buy within your budget</h2><p>See what your monthly payment could get you.</p></div><BudgetMini nav={p.nav} /></section>
     <section className="container splitPromo">
@@ -74,7 +76,7 @@ function Home(p: any): ReactNode {
     </section>
     <section className="container">
       <div className="sectionTitle"><div><p className="eyebrow">HANDPICKED FOR YOU</p><h2>Featured vehicles</h2></div><button onClick={() => p.nav("results")}>View all cars →</button></div>
-      <div className="grid">{cars.slice(0, 3).map(c => <Card key={c.id} car={c} favourite={() => { }} onView={p.onViewCar} />)}</div>
+      <div className="grid">{p.cars.slice(0, 3).map((c: Vehicle) => <Card key={c.id} car={c} favourite={() => { }} onView={p.onViewCar} />)}</div>
     </section>
     <Trust setNotice={() => { }} />
     <section className="container editorial"><p className="eyebrow">ON THE ROAD</p><h2>Advice for every journey</h2><div className="articles"><article><b>Buying guide</b><h3>What to check before you buy a used car in Tanzania</h3><a>Read guide →</a></article><article><b>Finance</b><h3>Understanding your vehicle finance options</h3><a>Explore finance →</a></article><article><b>Safety</b><h3>How to buy and sell cars safely online</h3><a>Stay protected →</a></article></div></section>
@@ -91,7 +93,7 @@ function BudgetMini({ nav }: { nav: any }): ReactNode {
   </div> 
 }
 
-function Card({ car, favourite, fav, onView }: { car: Vehicle; favourite: () => void; open?: () => void; fav?: boolean; onView: (id: number) => void }): ReactNode { 
+function Card({ car, favourite, fav, onView }: { car: Vehicle; favourite: () => void; open?: () => void; fav?: boolean; onView: (id: string | number) => void }): ReactNode { 
   const open = () => onView(car.id);
   return <article className="carCard">
     <div className="carImage" onClick={open} role="button" tabIndex={0}>
@@ -110,15 +112,15 @@ function Card({ car, favourite, fav, onView }: { car: Vehicle; favourite: () => 
   </article> 
 }
 
-function Results({ cars: shown, query, setQuery, region, setRegion, search, sort, setSort, drawer, setDrawer, favourite, fav, nav, filters, setFilters, page, setPage, onViewCar }: any): ReactNode { 
+function Results({ cars: shown, availableCars, query, setQuery, region, setRegion, search, sort, setSort, drawer, setDrawer, favourite, fav, nav, filters, setFilters, page, setPage, onViewCar }: any): ReactNode { 
   const perPage = 4; 
   const totalPages = Math.max(1, Math.ceil(shown.length / perPage)); 
   const visible = shown.slice((page - 1) * perPage, page * perPage); 
   return <main className="container results">
     <p className="crumb">Home / Cars for sale</p>
     <h1>Cars for sale in Tanzania</h1>
-    <div className="resultsSearch"><Search search={search} query={query} setQuery={setQuery} region={region} setRegion={setRegion} count={shown.length} setDrawer={setDrawer} /><button className="mobileFilter" onClick={() => setDrawer(true)}>☷ Filters</button></div>
-    <div className="chips">{query && <button onClick={() => setQuery("")}>Keyword: {query} ×</button>}{region && <button onClick={() => setRegion("")}>Region: {region} ×</button>}{Object.entries(filters).filter(([, value]) => value).map(([key, value]) => <button key={key} onClick={() => setFilters({ ...filters, [key]: "" })}>{key.replace(/([A-Z])/g, " $1")}: {value} ×</button>)}</div>
+    <div className="resultsSearch"><Search search={search} query={query} setQuery={setQuery} region={region} setRegion={setRegion} availableCars={availableCars} count={shown.length} setDrawer={setDrawer} /><button className="mobileFilter" onClick={() => setDrawer(true)}>☷ Filters</button></div>
+    <div className="chips">{query && <button onClick={() => setQuery("")}>Keyword: {query} ×</button>}{region && <button onClick={() => setRegion("")}>Region: {region} ×</button>}{Object.entries(filters).filter(([, value]) => value).map(([key, value]) => <button key={key} onClick={() => setFilters({ ...filters, [key]: "" })}>{key.replace(/([A-Z])/g, " $1")}: {String(value)} ×</button>)}</div>
     <div className="resultHeading"><b>{shown.length} vehicles found</b><label>Sort by <select value={sort} onChange={e => setSort(e.target.value)}><option value="relevance">Relevance</option><option value="new">Newest model year</option><option value="low">Price low-high</option><option value="high">Price high-low</option><option value="mileage">Mileage low-high</option></select></label></div>
     <div className="resultsLayout">
       <aside className="side"><h3>Refine your search</h3><button onClick={() => setDrawer(true)}>Open filters</button><p>Search alerts</p><p>Dealer discovery</p><div className="safe"><b>Stay safe</b><br />Never pay a deposit before seeing the vehicle and seller.</div></aside>
@@ -129,11 +131,11 @@ function Results({ cars: shown, query, setQuery, region, setRegion, search, sort
         {shown.length > perPage && <div className="pagination"><button disabled={page === 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next →</button></div>}
       </section>
     </div>
-    {drawer && <Filter setDrawer={setDrawer} region={region} setRegion={setRegion} filters={filters} setFilters={setFilters} />}
+      {drawer && <Filter availableCars={availableCars} setDrawer={setDrawer} region={region} setRegion={setRegion} filters={filters} setFilters={setFilters} />}
   </main> 
 }
 
-function Filter({ setDrawer, region, setRegion, filters, setFilters }: any): ReactNode { 
+function Filter({ availableCars, setDrawer, region, setRegion, filters, setFilters }: any): ReactNode { 
   const reset = () => { setRegion(""); setFilters({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "" }) }; 
   const field = (name: string, label: string, type = "text") => <label>{label}<input type={type} value={filters[name]} onChange={e => setFilters({ ...filters, [name]: e.target.value })} /></label>; 
   const select = (name: string, label: string, options: string[]) => <label>{label}<select value={filters[name]} onChange={e => setFilters({ ...filters, [name]: e.target.value })}><option value="">Any {label.toLowerCase()}</option>{options.map(option => <option key={option}>{option}</option>)}</select></label>; 
@@ -141,7 +143,7 @@ function Filter({ setDrawer, region, setRegion, filters, setFilters }: any): Rea
     <aside className="drawer">
       <button className="close" onClick={() => setDrawer(false)}>×</button>
       <h2>Filters</h2>
-      <label>Region<select value={region} onChange={e => setRegion(e.target.value)}><option value="">Any region</option>{[...new Set(cars.map(c => c.region))].map(x => <option key={x}>{x}</option>)}</select></label>
+      <label>Region<select value={region} onChange={e => setRegion(e.target.value)}><option value="">Any region</option>{[...new Set((availableCars as Vehicle[]).map(c => c.region))].map(x => <option key={x}>{x}</option>)}</select></label>
       <div className="filterGrid">{field("minPrice", "Price from (TZS)", "number")}{field("maxPrice", "Price to (TZS)", "number")}{field("maxMileage", "Maximum mileage", "number")}{select("fuel", "Fuel", ["Petrol", "Diesel", "Hybrid", "Electric"])}{select("transmission", "Transmission", ["Automatic", "Manual"])}{select("bodyType", "Body type", ["Sedan", "SUV", "Hatchback", "Pickup", "Van", "Minibus"])}{select("condition", "Condition", ["Foreign Used", "Local Used", "Brand New", "Reconditioned"])}{select("sellerType", "Seller type", ["Dealer", "Private"])}</div>
       <div className="drawerActions"><button onClick={reset}>Reset</button><button className="primary" onClick={() => setDrawer(false)}>Show results</button></div>
     </aside>

@@ -10,4 +10,5 @@ export default async function DetailPage({ params }: { params: Promise<{ make: s
   const route = await params;
   const vehicle = await getPublishedListingById(route.id);
   if (!vehicle || slugify(vehicle.make) !== route.make || slugify(vehicle.model) !== route.model || slugify(vehicle.variant) !== route.variant) notFound();
-return <Marketplace initialVehicles={[vehicle]} initialView="detail" initialCarId={Number(vehicle.id)} />;
+  return <Marketplace initialVehicles={[vehicle]} initialView="detail" initialCarId={vehicle.id} />;
+}

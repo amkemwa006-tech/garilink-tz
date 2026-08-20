@@ -15,8 +15,8 @@ export interface Vehicle {
   transmission: string;
   badge: string;
   dealer: string;
-  promoted: boolean;
-  verified: boolean;
+  promoted?: boolean;
+  verified?: boolean;
   sellerType: string;
   bodyType: string;
   image: string;

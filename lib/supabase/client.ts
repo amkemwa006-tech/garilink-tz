@@ -13,8 +13,7 @@ export function getImageUrl(filename: string): string {
     return filename;
   }
   
-  // Build the full Supabase Storage URL
-  // Note: bucket name has a trailing dot: "listing-images."
+  // Build the full Supabase Storage URL.
   const baseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  return `${baseUrl}/storage/v1/object/public/listing-images./${filename}`;
+  return `${baseUrl}/storage/v1/object/public/listing-images/${filename}`;
 }
