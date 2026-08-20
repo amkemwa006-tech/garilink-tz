@@ -31,7 +31,7 @@ export default async function SellerOnboardingPage() {
       })
       .eq("id", user.id);
 
-    redirect("/seller");
+    redirect("/seller/create-listing");
   }
 
   return (

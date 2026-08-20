@@ -2,10 +2,13 @@
 import React, { FormEvent, useEffect, useMemo, useState, ReactNode } from "react";
 import { vehiclePath, vehicles as mockCars, type Vehicle } from "../../lib/vehicles";
 import { getImageFallbackUrl, getImageUrl } from "../../lib/supabase/client";
+import { createClient } from "../../lib/supabase/client";
 import type { Listing } from "../../lib/listings";
 
 const money = (n: number) => new Intl.NumberFormat("en-TZ", { style: "currency", currency: "TZS", maximumFractionDigits: 0 }).format(n).replace("TZS", "TSh");
 const LinkLogo = (): ReactNode => <a className="logo" href="/"><span className="mark">↗</span><span>GariLink <b>Tz</b></span></a>;
+
+type AccountState = { role: string } | null;
 
 export default function Marketplace({ initialVehicles = [], initialView = "home", initialCarId = 1, initialQuery = "", initialRegion = "" }: { initialVehicles?: Listing[]; initialView?: "home" | "results" | "detail" | "finance" | "value" | "sell" | "dealer"; initialCarId?: string | number; initialQuery?: string; initialRegion?: string }): ReactNode {
   const cars = (initialVehicles.length ? initialVehicles.map((listing) => ({ ...listing, promoted: false })) : mockCars) as unknown as Vehicle[];
@@ -17,6 +20,7 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
   const [sort, setSort] = useState("relevance");
   const [fav, setFav] = useState<(string | number)[]>([]);
   const [notice, setNotice] = useState("");
+  const [account, setAccount] = useState<AccountState>(null);
   const [lang, setLang] = useState<"EN" | "SW">("EN");
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "" });
@@ -24,6 +28,17 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
   const filtered = useMemo(() => cars.filter(c => (!query || `${c.make} ${c.model} ${c.variant}`.toLowerCase().includes(query.toLowerCase())) && (!region || c.region === region) && (!filters.minPrice || c.price >= Number(filters.minPrice)) && (!filters.maxPrice || c.price <= Number(filters.maxPrice)) && (!filters.maxMileage || c.mileage <= Number(filters.maxMileage)) && (!filters.fuel || c.fuel === filters.fuel) && (!filters.transmission || c.transmission === filters.transmission) && (!filters.bodyType || c.bodyType === filters.bodyType) && (!filters.condition || c.condition === filters.condition) && (!filters.sellerType || c.sellerType === filters.sellerType)).sort((a, b) => sort === "low" ? a.price - b.price : sort === "high" ? b.price - a.price : sort === "new" ? b.year - a.year : sort === "mileage" ? a.mileage - b.mileage : 0), [query, region, sort, filters]);
   
   useEffect(() => { setPage(1) }, [query, region, filters, sort]);
+  useEffect(() => {
+    const loadAccount = async () => {
+      if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return;
+      const supabase = createClient();
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
+      setAccount({ role: profile?.role ?? "buyer" });
+    };
+    void loadAccount();
+  }, []);
   useEffect(() => {
     if (view !== "results") return;
     const params = new URLSearchParams();
@@ -46,7 +61,7 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
   const currentCar = cars.find((car) => car.id === activeCarId) ?? cars[0];
 
   return <>
-    <header><div className="header"><LinkLogo /><nav><button onClick={() => nav("results")}>Buy a car</button><button onClick={() => nav("sell")}>Sell my car</button><button onClick={() => nav("value")}>Value my car</button><button>News & reviews⌄</button><button onClick={() => nav("finance")}>Tools & services</button></nav><div className="headerRight"><button className="lang" onClick={() => setLang(lang === "EN" ? "SW" : "EN")}>{lang} / {lang === "EN" ? "SW" : "EN"}</button><button className="dealerLogin" onClick={() => nav("dealer")}>Dealer Login</button><button className="account" onClick={() => window.location.assign("/auth")}>◯ Sign in</button></div></div></header>
+    <header><div className="header"><LinkLogo /><nav><button onClick={() => nav("results")}>Buy a car</button><button onClick={() => nav("sell")}>Sell my car</button><button onClick={() => nav("value")}>Value my car</button><button>News & reviews⌄</button><button onClick={() => nav("finance")}>Tools & services</button></nav><div className="headerRight"><button className="lang" onClick={() => setLang(lang === "EN" ? "SW" : "EN")}>{lang} / {lang === "EN" ? "SW" : "EN"}</button><button className="dealerLogin" onClick={() => window.location.assign(account?.role === "seller" || account?.role === "dealer" ? "/seller/create-listing" : "/seller/onboarding")}>{account?.role === "seller" || account?.role === "dealer" ? "Seller dashboard" : "For dealers"}</button><button className="account" onClick={() => window.location.assign(account ? "/account" : "/auth")}>◯ {account ? "My account" : "Sign in"}</button></div></div></header>
     {notice && <div className="toast" role="status">{notice}</div>}
     {view === "home" && <Home cars={cars} search={search} query={query} setQuery={setQuery} region={region} setRegion={setRegion} count={filtered.length} nav={nav} setDrawer={setDrawer} lang={lang} onViewCar={handleViewCar} />}
     {view === "results" && <Results availableCars={cars} cars={filtered} query={query} setQuery={setQuery} region={region} setRegion={setRegion} search={search} sort={sort} setSort={setSort} drawer={drawer} setDrawer={setDrawer} favourite={favourite} fav={fav} nav={nav} filters={filters} setFilters={setFilters} page={page} setPage={setPage} onViewCar={handleViewCar} />}

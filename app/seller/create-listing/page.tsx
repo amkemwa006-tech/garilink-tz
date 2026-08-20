@@ -111,13 +111,15 @@ export default function CreateListingPage() {
           <textarea name="description" />
         </label>
 
+        <label>
+          Vehicle photos
+          <input name="images" type="file" accept="image/*" multiple />
+        </label>
+
         <button className="primary">Save draft</button>
       </form>
 
       <p>{message}</p>
     </main>
-  );<label>
-  Vehicle photos
-  <input name="images" type="file" accept="image/*" multiple />
-</label>
+  );
 }
