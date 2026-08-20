@@ -1,0 +1,13 @@
+# Dependencies and Next.js build output
+node_modules/
+.next/
+out/
+
+# Local credentials
+.env.local
+.env*.local
+
+# Local operating-system and editor files
+.DS_Store
+Thumbs.db
+*.tsbuildinfo
