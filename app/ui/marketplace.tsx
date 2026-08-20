@@ -21,7 +21,7 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
   const [fav, setFav] = useState<(string | number)[]>([]);
   const [notice, setNotice] = useState("");
   const [account, setAccount] = useState<AccountState>(null);
-  const [lang, setLang] = useState<"EN" | "SW">("EN");
+  const [lang, setLang] = useState<"EN" | "SW">("SW");
   const [page, setPage] = useState(1);
   const [filters, setFilters] = useState({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "" });
   
