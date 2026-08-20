@@ -45,6 +45,8 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
       if (!user) return;
       const { data: profile } = await supabase.from("profiles").select("role").eq("id", user.id).maybeSingle();
       setAccount({ role: profile?.role ?? "buyer" });
+      const { data: saved, error } = await supabase.from("saved_vehicles").select("listing_id").eq("user_id", user.id);
+      if (!error) setFav((saved ?? []).map((item) => item.listing_id));
     };
     void loadAccount();
   }, []);
@@ -60,7 +62,35 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
   }, [view, category, query, region, sort, filters]);
   
   const search = (e: FormEvent) => { e.preventDefault(); setView("results"); };
-  const favourite = (id: string | number) => setFav(x => x.includes(id) ? x.filter(v => v !== id) : [...x, id]);
+  const favourite = async (id: string | number) => {
+    if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+      setNotice("Sign in to save vehicles.");
+      return;
+    }
+
+    const supabase = createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      window.location.assign("/auth");
+      return;
+    }
+
+    const listingId = String(id);
+    const alreadySaved = fav.includes(id) || fav.includes(listingId);
+    setFav((items) => alreadySaved ? items.filter((item) => item !== id && item !== listingId) : [...items, id]);
+
+    const { error } = alreadySaved
+      ? await supabase.from("saved_vehicles").delete().eq("user_id", user.id).eq("listing_id", listingId)
+      : await supabase.from("saved_vehicles").upsert({ user_id: user.id, listing_id: listingId }, { onConflict: "user_id,listing_id" });
+
+    if (error) {
+      setFav((items) => alreadySaved ? [...items, id] : items.filter((item) => item !== id));
+      setNotice("We could not update your saved vehicles. Please try again.");
+      return;
+    }
+
+    setNotice(alreadySaved ? "Vehicle removed from saved cars." : "Vehicle saved to your account.");
+  };
   const nav = (v: typeof view) => { setView(v); window.scrollTo({ top: 0, behavior: "smooth" }); };
   
   const handleViewCar = (id: string | number) => {
