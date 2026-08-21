@@ -19,26 +19,7 @@ const matchesCategory = (car: Vehicle, category: VehicleCategory) =>
     : category === "commercial" ? commercialBodyTypes.has(car.bodyType)
       : motorcycleBodyTypes.has(car.bodyType);
 
-type SearchSuggestion = { label: string; query: string; kind: "Make" | "Model" | "Variant" | "Dealer"; count: number };
-
-function buildSearchSuggestions(cars: Vehicle[]): SearchSuggestion[] {
-  const groups = new Map<string, SearchSuggestion>();
-  const add = (kind: SearchSuggestion["kind"], label: string) => {
-    const key = `${kind}:${label}`;
-    const existing = groups.get(key);
-    if (existing) existing.count += 1;
-    else groups.set(key, { kind, label, query: label, count: 1 });
-  };
-
-  cars.forEach((car) => {
-    add("Make", car.make);
-    add("Model", `${car.make} ${car.model}`);
-    if (car.variant) add("Variant", `${car.make} ${car.model} ${car.variant}`);
-    if (car.dealer) add("Dealer", car.dealer);
-  });
-
-  return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
-}
+type SearchSuggestion = { label: string; kind: "Make" | "Model" | "Variant"; count: number };
 
 export default function Marketplace({ initialVehicles = [], initialView = "home", initialCarId = 1, initialQuery = "", initialRegion = "" }: { initialVehicles?: Listing[]; initialView?: "home" | "results" | "detail" | "finance" | "value" | "sell" | "dealer"; initialCarId?: string | number; initialQuery?: string; initialRegion?: string }): ReactNode {
   const cars = (initialVehicles.length ? initialVehicles.map((listing) => ({ ...listing, promoted: false })) : mockCars) as unknown as Vehicle[];
@@ -133,16 +114,53 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
 
 function Search({ search, query, setQuery, region, setRegion, availableCars, count, setDrawer }: { search: (e: FormEvent) => void; query: string; setQuery: (s: string) => void; region: string; setRegion: (s: string) => void; availableCars: Vehicle[]; count: number; setDrawer?: (x: boolean) => void }): ReactNode {
   const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const [selectedMake, setSelectedMake] = useState("");
+  const [selectedModel, setSelectedModel] = useState("");
   const suggestions = useMemo(() => {
     const text = query.trim().toLowerCase();
-    if (!text) return [];
-    return buildSearchSuggestions(availableCars).filter((item) => item.label.toLowerCase().includes(text)).slice(0, 10);
-  }, [availableCars, query]);
+    const groups = new Map<string, SearchSuggestion>();
+    const add = (kind: SearchSuggestion["kind"], label: string) => {
+      if (text && !label.toLowerCase().includes(text)) return;
+      const key = `${kind}:${label}`;
+      const current = groups.get(key);
+      if (current) current.count += 1;
+      else groups.set(key, { kind, label, count: 1 });
+    };
+
+    if (!selectedMake) availableCars.forEach((car) => add("Make", car.make));
+    else if (!selectedModel) availableCars.filter((car) => car.make === selectedMake).forEach((car) => add("Model", car.model));
+    else availableCars.filter((car) => car.make === selectedMake && car.model === selectedModel).forEach((car) => add("Variant", car.variant || "Standard"));
+
+    return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [availableCars, query, selectedMake, selectedModel]);
+
+  const chooseSuggestion = (suggestion: SearchSuggestion) => {
+    if (suggestion.kind === "Make") {
+      setSelectedMake(suggestion.label);
+      setSelectedModel("");
+      setQuery("");
+      return;
+    }
+    if (suggestion.kind === "Model") {
+      setSelectedModel(suggestion.label);
+      setQuery("");
+      return;
+    }
+    setQuery(`${selectedMake} ${selectedModel}${suggestion.label === "Standard" ? "" : ` ${suggestion.label}`}`);
+    setSuggestionsOpen(false);
+  };
+
+  const resetPicker = () => {
+    setSelectedMake("");
+    setSelectedModel("");
+    setQuery("");
+  };
 
   return <form className="search" onSubmit={search}>
-    <label className={searchStyles.field}><span>Make, model or keyword — including variant or dealer</span><input value={query} onFocus={() => setSuggestionsOpen(true)} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); }} placeholder="e.g. Toyota Harrier or Safari Motors" autoComplete="off" />
+    <label className={searchStyles.field}><span>Make, model or keyword — including variant or dealer</span><input value={query} onFocus={() => setSuggestionsOpen(true)} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); if (!e.target.value) { setSelectedMake(""); setSelectedModel(""); } }} placeholder={selectedModel ? `Choose a variant for ${selectedModel}` : selectedMake ? `Choose a model for ${selectedMake}` : "Choose make, model or variant (e.g. Toyota Harrier)"} autoComplete="off" />
       {suggestionsOpen && suggestions.length > 0 && <div className={searchStyles.suggestions} role="listbox" aria-label="Vehicle suggestions">
-        {suggestions.map((suggestion) => <button type="button" role="option" key={`${suggestion.kind}-${suggestion.label}`} className={searchStyles.suggestion} onMouseDown={(event) => event.preventDefault()} onClick={() => { setQuery(suggestion.query); setSuggestionsOpen(false); }}>
+        <div className={searchStyles.breadcrumbs}><button type="button" className={searchStyles.breadcrumb} onMouseDown={(event) => event.preventDefault()} onClick={resetPicker}>All makes</button>{selectedMake && <><span>›</span><button type="button" className={searchStyles.breadcrumb} onMouseDown={(event) => event.preventDefault()} onClick={() => { setSelectedModel(""); setQuery(""); }}>{selectedMake}</button></>}{selectedModel && <><span>›</span><span>{selectedModel}</span></>}</div>
+        {suggestions.map((suggestion) => <button type="button" role="option" key={`${suggestion.kind}-${suggestion.label}`} className={searchStyles.suggestion} onMouseDown={(event) => event.preventDefault()} onClick={() => chooseSuggestion(suggestion)}>
           <span className={searchStyles.suggestionText}><b>{suggestion.label}</b><span className={searchStyles.suggestionKind}>{suggestion.kind}</span></span><span className={searchStyles.count}>{suggestion.count} {suggestion.count === 1 ? "car" : "cars"}</span>
         </button>)}
       </div>}

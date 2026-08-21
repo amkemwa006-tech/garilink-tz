@@ -17,6 +17,26 @@
   box-shadow: 0 12px 28px rgba(11, 35, 65, .18);
 }
 
+.breadcrumbs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+  padding: 5px 6px 9px;
+  border-bottom: 1px solid #e3eaf2;
+}
+
+.breadcrumb {
+  min-height: 0;
+  padding: 3px 5px;
+  border: 0;
+  color: #087cf0;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .suggestion {
   display: flex;
   align-items: center;
