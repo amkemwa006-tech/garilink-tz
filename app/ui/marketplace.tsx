@@ -5,6 +5,7 @@ import { createClient, getImageFallbackUrl, getImageUrl } from "../../lib/supaba
 import type { Listing } from "../../lib/listings";
 import galleryStyles from "./detail-gallery.module.css";
 import tabStyles from "./marketplace-tabs.module.css";
+import searchStyles from "./vehicle-search.module.css";
 
 const money = (n: number) => new Intl.NumberFormat("en-TZ", { style: "currency", currency: "TZS", maximumFractionDigits: 0 }).format(n).replace("TZS", "TSh");
 const LinkLogo = (): ReactNode => <a className="logo" href="/"><span className="mark">↗</span><span>GariLink <b>Tz</b></span></a>;
@@ -17,6 +18,27 @@ const matchesCategory = (car: Vehicle, category: VehicleCategory) =>
   category === "cars" ? !commercialBodyTypes.has(car.bodyType) && !motorcycleBodyTypes.has(car.bodyType)
     : category === "commercial" ? commercialBodyTypes.has(car.bodyType)
       : motorcycleBodyTypes.has(car.bodyType);
+
+type SearchSuggestion = { label: string; query: string; kind: "Make" | "Model" | "Variant" | "Dealer"; count: number };
+
+function buildSearchSuggestions(cars: Vehicle[]): SearchSuggestion[] {
+  const groups = new Map<string, SearchSuggestion>();
+  const add = (kind: SearchSuggestion["kind"], label: string) => {
+    const key = `${kind}:${label}`;
+    const existing = groups.get(key);
+    if (existing) existing.count += 1;
+    else groups.set(key, { kind, label, query: label, count: 1 });
+  };
+
+  cars.forEach((car) => {
+    add("Make", car.make);
+    add("Model", `${car.make} ${car.model}`);
+    if (car.variant) add("Variant", `${car.make} ${car.model} ${car.variant}`);
+    if (car.dealer) add("Dealer", car.dealer);
+  });
+
+  return [...groups.values()].sort((a, b) => a.label.localeCompare(b.label));
+}
 
 export default function Marketplace({ initialVehicles = [], initialView = "home", initialCarId = 1, initialQuery = "", initialRegion = "" }: { initialVehicles?: Listing[]; initialView?: "home" | "results" | "detail" | "finance" | "value" | "sell" | "dealer"; initialCarId?: string | number; initialQuery?: string; initialRegion?: string }): ReactNode {
   const cars = (initialVehicles.length ? initialVehicles.map((listing) => ({ ...listing, promoted: false })) : mockCars) as unknown as Vehicle[];
@@ -109,9 +131,22 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
     {view === "finance" && <Finance />}{view === "value" && <Value nav={nav} />} {view === "sell" && <Sell setNotice={setNotice} />} {view === "dealer" && <DealerDashboard setNotice={setNotice} />}<Footer /><MobileNav nav={nav} setDrawer={setDrawer} fav={fav.length} lang={lang} /></>;
 }
 
-function Search({ search, query, setQuery, region, setRegion, availableCars, count, setDrawer }: { search: (e: FormEvent) => void; query: string; setQuery: (s: string) => void; region: string; setRegion: (s: string) => void; availableCars: Vehicle[]; count: number; setDrawer?: (x: boolean) => void }): ReactNode { 
+function Search({ search, query, setQuery, region, setRegion, availableCars, count, setDrawer }: { search: (e: FormEvent) => void; query: string; setQuery: (s: string) => void; region: string; setRegion: (s: string) => void; availableCars: Vehicle[]; count: number; setDrawer?: (x: boolean) => void }): ReactNode {
+  const [suggestionsOpen, setSuggestionsOpen] = useState(false);
+  const suggestions = useMemo(() => {
+    const text = query.trim().toLowerCase();
+    if (!text) return [];
+    return buildSearchSuggestions(availableCars).filter((item) => item.label.toLowerCase().includes(text)).slice(0, 10);
+  }, [availableCars, query]);
+
   return <form className="search" onSubmit={search}>
-    <label><span>Make, model or keyword — including variant or dealer</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. Toyota Harrier or Safari Motors" /></label>
+    <label className={searchStyles.field}><span>Make, model or keyword — including variant or dealer</span><input value={query} onFocus={() => setSuggestionsOpen(true)} onChange={e => { setQuery(e.target.value); setSuggestionsOpen(true); }} placeholder="e.g. Toyota Harrier or Safari Motors" autoComplete="off" />
+      {suggestionsOpen && suggestions.length > 0 && <div className={searchStyles.suggestions} role="listbox" aria-label="Vehicle suggestions">
+        {suggestions.map((suggestion) => <button type="button" role="option" key={`${suggestion.kind}-${suggestion.label}`} className={searchStyles.suggestion} onMouseDown={(event) => event.preventDefault()} onClick={() => { setQuery(suggestion.query); setSuggestionsOpen(false); }}>
+          <span className={searchStyles.suggestionText}><b>{suggestion.label}</b><span className={searchStyles.suggestionKind}>{suggestion.kind}</span></span><span className={searchStyles.count}>{suggestion.count} {suggestion.count === 1 ? "car" : "cars"}</span>
+        </button>)}
+      </div>}
+    </label>
     <label><span>Location</span><select value={region} onChange={e => setRegion(e.target.value)}><option value="">All Tanzania</option>{[...new Set(availableCars.map(c => c.region))].map(x => <option key={x}>{x}</option>)}</select></label>
     <button className="filter" type="button" onClick={() => setDrawer?.(true)}> Filters</button>
     <button className="primary">Search {count} cars</button>
