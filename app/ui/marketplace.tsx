@@ -32,9 +32,9 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
   const [lang, setLang] = useState<"EN" | "SW">("SW");
   const [category, setCategory] = useState<VehicleCategory>("cars");
   const [page, setPage] = useState(1);
-  const [filters, setFilters] = useState({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "" });
+  const [filters, setFilters] = useState({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "", dealer: "" });
   
-  const filtered = useMemo(() => cars.filter(c => matchesCategory(c, category) && (!query || `${c.make} ${c.model} ${c.variant}`.toLowerCase().includes(query.toLowerCase())) && (!region || c.region === region) && (!filters.minPrice || c.price >= Number(filters.minPrice)) && (!filters.maxPrice || c.price <= Number(filters.maxPrice)) && (!filters.maxMileage || c.mileage <= Number(filters.maxMileage)) && (!filters.fuel || c.fuel === filters.fuel) && (!filters.transmission || c.transmission === filters.transmission) && (!filters.bodyType || c.bodyType === filters.bodyType) && (!filters.condition || c.condition === filters.condition) && (!filters.sellerType || c.sellerType === filters.sellerType)).sort((a, b) => sort === "low" ? a.price - b.price : sort === "high" ? b.price - a.price : sort === "new" ? b.year - a.year : sort === "mileage" ? a.mileage - b.mileage : 0), [cars, category, query, region, sort, filters]);
+  const filtered = useMemo(() => cars.filter(c => matchesCategory(c, category) && (!query || `${c.make} ${c.model} ${c.variant} ${c.dealer}`.toLowerCase().includes(query.toLowerCase())) && (!region || c.region === region) && (!filters.minPrice || c.price >= Number(filters.minPrice)) && (!filters.maxPrice || c.price <= Number(filters.maxPrice)) && (!filters.maxMileage || c.mileage <= Number(filters.maxMileage)) && (!filters.fuel || c.fuel === filters.fuel) && (!filters.transmission || c.transmission === filters.transmission) && (!filters.bodyType || c.bodyType === filters.bodyType) && (!filters.condition || c.condition === filters.condition) && (!filters.sellerType || c.sellerType === filters.sellerType) && (!filters.dealer || c.dealer === filters.dealer)).sort((a, b) => sort === "low" ? a.price - b.price : sort === "high" ? b.price - a.price : sort === "new" ? b.year - a.year : sort === "mileage" ? a.mileage - b.mileage : 0), [cars, category, query, region, sort, filters]);
   
   useEffect(() => { setPage(1) }, [query, region, filters, sort]);
   useEffect(() => {
@@ -111,7 +111,7 @@ export default function Marketplace({ initialVehicles = [], initialView = "home"
 
 function Search({ search, query, setQuery, region, setRegion, availableCars, count, setDrawer }: { search: (e: FormEvent) => void; query: string; setQuery: (s: string) => void; region: string; setRegion: (s: string) => void; availableCars: Vehicle[]; count: number; setDrawer?: (x: boolean) => void }): ReactNode { 
   return <form className="search" onSubmit={search}>
-    <label><span>Make, model or keyword</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. Toyota Harrier" /></label>
+    <label><span>Make, model or keyword — including variant or dealer</span><input value={query} onChange={e => setQuery(e.target.value)} placeholder="e.g. Toyota Harrier or Safari Motors" /></label>
     <label><span>Location</span><select value={region} onChange={e => setRegion(e.target.value)}><option value="">All Tanzania</option>{[...new Set(availableCars.map(c => c.region))].map(x => <option key={x}>{x}</option>)}</select></label>
     <button className="filter" type="button" onClick={() => setDrawer?.(true)}> Filters</button>
     <button className="primary">Search {count} cars</button>
@@ -182,7 +182,7 @@ function Results({ cars: shown, availableCars, query, setQuery, region, setRegio
       <section>
         <div className="sponsored">Sponsored listings</div>
         {visible.map((c: Vehicle, i: number) => <div key={c.id}>{i === 2 && <div className="insert"><b>Thinking of selling?</b><span>Get your free car valuation today.</span><button onClick={() => nav("value")}>Value my car</button></div>}<Card car={c} favourite={() => favourite(c.id)} fav={fav.includes(c.id)} onView={onViewCar} /></div>)}
-        {!shown.length && <div className="empty"><h2>No {category === "cars" ? "cars" : category === "commercial" ? "commercial vehicles" : "motorcycles"} matched that search</h2><p>{category === "cars" ? "Try removing a filter or searching a different make." : "There are no published listings in this category yet. Sellers can add one from the Sell my car page."}</p><button onClick={() => { setQuery(""); setRegion(""); setFilters({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "" }) }}>Clear filters</button></div>}
+        {!shown.length && <div className="empty"><h2>No {category === "cars" ? "cars" : category === "commercial" ? "commercial vehicles" : "motorcycles"} matched that search</h2><p>{category === "cars" ? "Try removing a filter or searching a different make." : "There are no published listings in this category yet. Sellers can add one from the Sell my car page."}</p><button onClick={() => { setQuery(""); setRegion(""); setFilters({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "", dealer: "" }) }}>Clear filters</button></div>}
         {shown.length > perPage && <div className="pagination"><button disabled={page === 1} onClick={() => setPage(page - 1)}>← Previous</button><span>Page {page} of {totalPages}</span><button disabled={page === totalPages} onClick={() => setPage(page + 1)}>Next →</button></div>}
       </section>
     </div>
@@ -191,7 +191,7 @@ function Results({ cars: shown, availableCars, query, setQuery, region, setRegio
 }
 
 function Filter({ availableCars, setDrawer, region, setRegion, filters, setFilters }: any): ReactNode { 
-  const reset = () => { setRegion(""); setFilters({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "" }) }; 
+  const reset = () => { setRegion(""); setFilters({ minPrice: "", maxPrice: "", maxMileage: "", fuel: "", transmission: "", bodyType: "", condition: "", sellerType: "", dealer: "" }) }; 
   const field = (name: string, label: string, type = "text") => <label>{label}<input type={type} value={filters[name]} onChange={e => setFilters({ ...filters, [name]: e.target.value })} /></label>; 
   const select = (name: string, label: string, options: string[]) => <label>{label}<select value={filters[name]} onChange={e => setFilters({ ...filters, [name]: e.target.value })}><option value="">Any {label.toLowerCase()}</option>{options.map(option => <option key={option}>{option}</option>)}</select></label>; 
   return <div className="overlay">
@@ -199,7 +199,7 @@ function Filter({ availableCars, setDrawer, region, setRegion, filters, setFilte
       <button className="close" onClick={() => setDrawer(false)}>×</button>
       <h2>Filters</h2>
       <label>Region<select value={region} onChange={e => setRegion(e.target.value)}><option value="">Any region</option>{[...new Set((availableCars as Vehicle[]).map(c => c.region))].map(x => <option key={x}>{x}</option>)}</select></label>
-      <div className="filterGrid">{field("minPrice", "Price from (TZS)", "number")}{field("maxPrice", "Price to (TZS)", "number")}{field("maxMileage", "Maximum mileage", "number")}{select("fuel", "Fuel", ["Petrol", "Diesel", "Hybrid", "Electric"])}{select("transmission", "Transmission", ["Automatic", "Manual"])}{select("bodyType", "Body type", ["Sedan", "SUV", "Hatchback", "Pickup", "Van", "Minibus"])}{select("condition", "Condition", ["Foreign Used", "Local Used", "Brand New", "Reconditioned"])}{select("sellerType", "Seller type", ["Dealer", "Private"])}</div>
+      <div className="filterGrid">{field("minPrice", "Price from (TZS)", "number")}{field("maxPrice", "Price to (TZS)", "number")}{field("maxMileage", "Maximum mileage", "number")}{select("fuel", "Fuel", ["Petrol", "Diesel", "Hybrid", "Electric"])}{select("transmission", "Transmission", ["Automatic", "Manual"])}{select("bodyType", "Body type", ["Sedan", "SUV", "Hatchback", "Pickup", "Van", "Minibus", "Truck", "Bus", "Motorcycle"])}{select("condition", "Condition", ["Foreign Used", "Local Used", "Brand New", "Reconditioned"])}{select("sellerType", "Seller type", ["Dealer", "Private"])}{select("dealer", "Dealer", [...new Set((availableCars as Vehicle[]).map(car => car.dealer).filter(Boolean))].sort())}</div>
       <div className="drawerActions"><button onClick={reset}>Reset</button><button className="primary" onClick={() => setDrawer(false)}>Show results</button></div>
     </aside>
   </div> 
